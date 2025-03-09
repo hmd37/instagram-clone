@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from users.models import User
-from users.serializers import UserSerializer, UserRegisterSerializer
+from users.serializers import UserSerializer, UserRegisterSerializer, UserUpdateSerializer
 
 from posts.models import Post, Like, Comment
 from posts.serializers import PostSerializer, CommentSerializer
@@ -13,6 +13,9 @@ from posts.serializers import PostSerializer, CommentSerializer
 
 #Users
 class UserRegisterView(APIView):
+
+    def get_serializer(self):
+        return UserRegisterSerializer()
 
     def post(self, request):
         serializer = UserRegisterSerializer(data=request.data)
@@ -32,6 +35,9 @@ class UserListCreateAPIView(generics.ListCreateAPIView):
 
 class UserDetailAPIView(APIView):
 
+    def get_serializer(self, *args, **kwargs):
+        return UserUpdateSerializer(*args, **kwargs)
+
     def get(self, request, username):
         user = get_object_or_404(User, username=username)
         serializer = UserSerializer(user)
@@ -39,7 +45,7 @@ class UserDetailAPIView(APIView):
 
     def put(self, request, username):
         user = get_object_or_404(User, username=username)
-        serializer = UserSerializer(user, data=request.data, partial=True)
+        serializer = UserUpdateSerializer(user, data=request.data, partial=True)
 
         if serializer.is_valid():
             serializer.save()
