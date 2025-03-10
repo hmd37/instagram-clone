@@ -5,10 +5,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from users.models import User
-from users.serializers import UserSerializer, UserRegisterSerializer, UserUpdateSerializer
+from users.serializers import (
+    UserSerializer, UserDetailSerializer,
+    UserRegisterSerializer,
+)
 
 from posts.models import Post, Like, Comment
-from posts.serializers import PostSerializer, CommentSerializer
+from posts.serializers import PostSerializer, CommentSerializer, PostDetailSerializer
 
 
 #Users
@@ -28,7 +31,7 @@ class UserRegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class UserListCreateAPIView(generics.ListCreateAPIView):
+class UserListAPIView(generics.ListAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
@@ -36,16 +39,16 @@ class UserListCreateAPIView(generics.ListCreateAPIView):
 class UserDetailAPIView(APIView):
 
     def get_serializer(self, *args, **kwargs):
-        return UserUpdateSerializer(*args, **kwargs)
+        return UserDetailSerializer(*args, **kwargs)
 
     def get(self, request, username):
         user = get_object_or_404(User, username=username)
-        serializer = UserSerializer(user)
+        serializer = UserDetailSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request, username):
         user = get_object_or_404(User, username=username)
-        serializer = UserUpdateSerializer(user, data=request.data, partial=True)
+        serializer = UserDetailSerializer(user, data=request.data, partial=True)
 
         if serializer.is_valid():
             serializer.save()
@@ -106,7 +109,7 @@ class PostDetailAPIView(APIView):
 
     def get(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
-        serializer = PostSerializer(post)
+        serializer = PostDetailSerializer(post)
         return Response(serializer.data)
 
     def delete(self, request, post_id):
