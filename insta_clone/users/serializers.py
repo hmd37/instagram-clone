@@ -20,8 +20,8 @@ class UserSerializer(serializers.ModelSerializer):
         view_name='user-detail',  
         lookup_field='username'   
     )
-    followers_count = serializers.SerializerMethodField()
-    following_count = serializers.SerializerMethodField()
+    followers_count = serializers.IntegerField(read_only=True)
+    following_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = User
@@ -29,17 +29,11 @@ class UserSerializer(serializers.ModelSerializer):
             'url', 'id', 'username', 'email', 
             'profile_picture', 'followers_count', 'following_count',
         ]
-
-    def get_followers_count(self, obj):
-        return obj.followers.count()
-
-    def get_following_count(self, obj):
-        return obj.following.count()
     
 
 class UserDetailSerializer(serializers.ModelSerializer):
-    followers_count = serializers.SerializerMethodField()
-    following_count = serializers.SerializerMethodField()
+    followers_count = serializers.IntegerField(read_only=True)  
+    following_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = User
@@ -49,8 +43,3 @@ class UserDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'email', 'followers_count', 'following_count']
 
-    def get_followers_count(self, obj):
-        return obj.followers.count()
-
-    def get_following_count(self, obj):
-        return obj.following.count()

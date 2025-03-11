@@ -15,38 +15,28 @@ class CommentSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     user = serializers.ReadOnlyField(source='user.username') 
-    likes_count = serializers.SerializerMethodField()
-    comments_count = serializers.SerializerMethodField()
+    likes_count = serializers.IntegerField(read_only=True)  
+    comments_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Post
         fields = ['url', 'id', 'user', 'image', 'caption', 
                   'likes_count', 'comments_count']
-
-    def get_likes_count(self, obj):
-        return obj.likes.count()
-
-    def get_comments_count(self, obj):
-        return obj.comments.count()
     
     def get_url(self, obj):
         request = self.context.get('request')
-        return request.build_absolute_uri(reverse('post-detail', kwargs={'post_id': obj.id}))
+        return request.build_absolute_uri(
+            reverse('post-detail', kwargs={'post_id': obj.id})
+        )
     
 
 class PostDetailSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username')
-    likes_count = serializers.SerializerMethodField()
-    comments_count = serializers.SerializerMethodField()
+    likes_count = serializers.IntegerField(read_only=True)
+    comments_count = serializers.IntegerField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True) 
 
     class Meta:
         model = Post
         fields = ['id', 'user', 'image', 'caption', 
                   'created_at', 'likes_count', 'comments_count', 'comments']
-
-    def get_likes_count(self, obj):
-        return obj.likes.count()
-
-    def get_comments_count(self, obj):
-        return obj.comments.count()

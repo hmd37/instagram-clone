@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
@@ -11,7 +12,10 @@ from users.serializers import (
 )
 
 from posts.models import Post, Like, Comment
-from posts.serializers import PostSerializer, CommentSerializer, PostDetailSerializer
+from posts.serializers import (
+    PostSerializer, PostDetailSerializer,
+    CommentSerializer, 
+)
 
 
 #Users
@@ -32,7 +36,10 @@ class UserRegisterView(APIView):
 
 
 class UserListAPIView(generics.ListAPIView):
-    queryset = User.objects.all()
+    queryset = User.objects.annotate(
+        followers_count=Count('followers', distinct=True),
+        following_count=Count('following', distinct=True)
+    )
     serializer_class = UserSerializer
 
 
@@ -40,9 +47,15 @@ class UserDetailAPIView(APIView):
 
     def get_serializer(self, *args, **kwargs):
         return UserDetailSerializer(*args, **kwargs)
-
+    
     def get(self, request, username):
-        user = get_object_or_404(User, username=username)
+        user = get_object_or_404(
+            User.objects.annotate(
+                followers_count=Count('followers', distinct=True),
+                following_count=Count('following', distinct=True)
+            ),
+            username=username
+        )
         serializer = UserDetailSerializer(user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -96,10 +109,19 @@ class PostListCreateAPIView(generics.ListCreateAPIView):
         user = self.request.user
 
         if not user.is_authenticated:
-            return Post.objects.none() 
+            return Post.objects.none()
 
-        followed_users = user.following.all()  
-        return Post.objects.filter(user__in=followed_users).order_by('-created_at')
+        followed_users = user.following.all()
+
+        return (
+            Post.objects.filter(user__in=followed_users)
+            .annotate(
+                likes_count=Count('likes', distinct=True),
+                comments_count=Count('comments', distinct=True)
+            )
+            .select_related('user') 
+            .order_by('-created_at')
+        )
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -108,7 +130,16 @@ class PostListCreateAPIView(generics.ListCreateAPIView):
 class PostDetailAPIView(APIView):
 
     def get(self, request, post_id):
-        post = get_object_or_404(Post, id=post_id)
+        post = get_object_or_404(
+        Post.objects.annotate(
+            likes_count=Count('likes', distinct=True),
+            comments_count=Count('comments', distinct=True)
+        )
+        .select_related('user') 
+        .prefetch_related('comments__user') 
+        , id=post_id
+        )
+
         serializer = PostDetailSerializer(post)
         return Response(serializer.data)
 
