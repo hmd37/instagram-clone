@@ -1,7 +1,11 @@
+from django.urls import reverse
+
+from drf_spectacular.utils import extend_schema_field
+
 from rest_framework import serializers
 
 from .models import Post, Comment
-from django.urls import reverse
+
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username') 
@@ -23,6 +27,7 @@ class PostSerializer(serializers.ModelSerializer):
         fields = ['url', 'id', 'user', 'image', 'caption', 
                   'likes_count', 'comments_count']
     
+    @extend_schema_field(serializers.CharField())
     def get_url(self, obj):
         request = self.context.get('request')
         return request.build_absolute_uri(

@@ -9,6 +9,7 @@ djangorestframework = "*"
 pillow = "*"
 djangorestframework-simplejwt = "*"
 django-silk = "*"
+drf-spectacular = "*"
 
 [dev-packages]
 

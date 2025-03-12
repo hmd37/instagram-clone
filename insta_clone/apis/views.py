@@ -1,12 +1,15 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
+from drf_spectacular.utils import extend_schema
+
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apis.permissions import IsProfileOwnerOrAdmin, IsPostOwnerOrAdmin
+from apis.schemas import user_register_schema, post_list_create_schema
 
 from users.models import User
 from users.serializers import (
@@ -22,15 +25,16 @@ from posts.serializers import (
 
 
 #Users
+@user_register_schema
 class UserRegisterView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    def get_serializer(self):
-        return UserRegisterSerializer()
+    def get_serializer(self, *args, **kwargs):
+        return UserRegisterSerializer(*args, **kwargs)
 
     def post(self, request):
-        serializer = UserRegisterSerializer(data=request.data)
+        serializer = UserRegisterSerializer(data=request.data, context={'request': request})
 
         if serializer.is_valid():
             serializer.save()
@@ -71,6 +75,8 @@ class UserDetailAPIView(APIView):
         user = get_object_or_404(User, username=username)
         serializer = UserDetailSerializer(user, data=request.data, partial=True)
 
+        self.check_object_permissions(request, user)
+
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -79,6 +85,9 @@ class UserDetailAPIView(APIView):
 
     def delete(self, request, username):
         user = get_object_or_404(User, username=username)
+
+        self.check_object_permissions(request, user)
+        
         user.delete()
         return Response({"message": "User deleted successfully"}, 
                         status=status.HTTP_204_NO_CONTENT)
@@ -87,6 +96,7 @@ class UserDetailAPIView(APIView):
 class FollowToggleView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(exclude=True)
     def post(self, request, username):
         """Toggle follow/unfollow action."""
         target_user = get_object_or_404(User, username=username)
@@ -111,6 +121,7 @@ class FollowToggleView(APIView):
 
 
 #Posts
+@post_list_create_schema
 class PostListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = PostSerializer
@@ -139,6 +150,7 @@ class PostListCreateAPIView(generics.ListCreateAPIView):
 
 class PostDetailAPIView(APIView):
     permission_classes = [IsAuthenticated, IsPostOwnerOrAdmin]
+    serializer_class = PostDetailSerializer
 
     def get(self, request, post_id):
         post = get_object_or_404(
@@ -157,9 +169,7 @@ class PostDetailAPIView(APIView):
     def delete(self, request, post_id):
         post = get_object_or_404(Post, id=post_id)
 
-        if request.user != post.user:
-            return Response({"error": "You can only delete your own posts"}, 
-                            status=status.HTTP_403_FORBIDDEN)
+        self.check_object_permissions(request, post) 
 
         post.delete()
         return Response({"message": "Post deleted successfully"}, 
@@ -169,6 +179,7 @@ class PostDetailAPIView(APIView):
 class LikeToggleView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(exclude=True)
     def post(self, request, post_id):
         user = request.user
         post = get_object_or_404(Post, id=post_id)
@@ -195,5 +206,3 @@ class CommentListCreateAPIView(generics.ListCreateAPIView):
         post_id = self.kwargs['post_id']
         post = Post.objects.get(id=post_id)  
         serializer.save(user=self.request.user, post=post)
-
-    
