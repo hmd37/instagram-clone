@@ -2,8 +2,11 @@ from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apis.permissions import IsProfileOwnerOrAdmin, IsPostOwnerOrAdmin
 
 from users.models import User
 from users.serializers import (
@@ -20,6 +23,8 @@ from posts.serializers import (
 
 #Users
 class UserRegisterView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
     def get_serializer(self):
         return UserRegisterSerializer()
@@ -36,6 +41,8 @@ class UserRegisterView(APIView):
 
 
 class UserListAPIView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+
     queryset = User.objects.annotate(
         followers_count=Count('followers', distinct=True),
         following_count=Count('following', distinct=True)
@@ -44,6 +51,7 @@ class UserListAPIView(generics.ListAPIView):
 
 
 class UserDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsProfileOwnerOrAdmin]
 
     def get_serializer(self, *args, **kwargs):
         return UserDetailSerializer(*args, **kwargs)
@@ -77,6 +85,7 @@ class UserDetailAPIView(APIView):
 
 
 class FollowToggleView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, username):
         """Toggle follow/unfollow action."""
@@ -103,6 +112,7 @@ class FollowToggleView(APIView):
 
 #Posts
 class PostListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = PostSerializer
 
     def get_queryset(self):
@@ -128,6 +138,7 @@ class PostListCreateAPIView(generics.ListCreateAPIView):
 
 
 class PostDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsPostOwnerOrAdmin]
 
     def get(self, request, post_id):
         post = get_object_or_404(
@@ -156,6 +167,7 @@ class PostDetailAPIView(APIView):
     
 
 class LikeToggleView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
         user = request.user
@@ -172,6 +184,7 @@ class LikeToggleView(APIView):
 
 
 class CommentListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = CommentSerializer
 
     def get_queryset(self):
