@@ -6,6 +6,8 @@ from rest_framework import serializers
 
 from .models import Post, Comment
 
+MB = 1024 * 1024
+
 
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.ReadOnlyField(source='user.username') 
@@ -33,6 +35,13 @@ class PostSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(
             reverse('post-detail', kwargs={'post_id': obj.id})
         )
+    
+    def validate_image(self, value):
+        if value.size > 2 * MB: 
+            raise serializers.ValidationError("Image file size must be less than 2MB.")
+        if not value.name.lower().endswith(('jpg', 'png')):
+            raise serializers.ValidationError("Only JPG and PNG formats are allowed.")
+        return value
     
 
 class PostDetailSerializer(serializers.ModelSerializer):
