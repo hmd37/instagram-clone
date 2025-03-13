@@ -10,6 +10,7 @@ pillow = "*"
 djangorestframework-simplejwt = "*"
 django-silk = "*"
 drf-spectacular = "*"
+django-cors-headers = "*"
 
 [dev-packages]
 
