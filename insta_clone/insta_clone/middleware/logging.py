@@ -2,6 +2,7 @@ import logging
 
 logger = logging.getLogger("django")
 
+
 class RequestLoggingMiddleware:
     """Middleware to log request details including user and IP address."""
 
