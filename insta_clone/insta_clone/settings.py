@@ -59,6 +59,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
     'silk.middleware.SilkyMiddleware',
+    'insta_clone.middleware.logging.RequestLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'insta_clone.urls'
@@ -159,3 +160,30 @@ SPECTACULAR_SETTINGS = {
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        'verbose': {
+            'format': '{levelname} {asctime} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    "handlers": {
+        "console": { 
+            "class": "logging.StreamHandler",  
+            "formatter": "verbose",  
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],  
+            "level": "INFO",  
+        },
+    },
+}
