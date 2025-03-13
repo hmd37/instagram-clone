@@ -52,7 +52,7 @@ class UserListAPIView(generics.ListAPIView):
     queryset = User.objects.annotate(
         followers_count=Count('followers', distinct=True),
         following_count=Count('following', distinct=True)
-    )
+    ).order_by('-date_joined')
     serializer_class = UserSerializer
 
 
