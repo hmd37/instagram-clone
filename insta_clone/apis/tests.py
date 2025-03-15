@@ -4,6 +4,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from posts.models import Post, Like
+
 User = get_user_model()
 
 
@@ -159,3 +161,173 @@ class UserDetailAPITestCase(APITestCase):
         response = self.client.get(reverse('user-detail', kwargs={'username': 'nonexistentuser'}))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class FollowToggleViewTest(APITestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username='user1', password='password', email='user1@example.com')
+        self.user2 = User.objects.create_user(username='user2', password='password', email='user2@example.com')
+        self.url = reverse('follow', kwargs={'username': self.user2.username})
+
+    def test_follow(self):
+        self.client.force_authenticate(user=self.user1)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(self.user2.followers.filter(id=self.user1.id).exists())
+
+    def test_unfollow(self):
+        self.user2.followers.add(self.user1)
+        self.client.force_authenticate(user=self.user1)
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(self.user2.followers.filter(id=self.user1.id).exists())
+
+    def test_follow_self(self):
+        self.client.force_authenticate(user=self.user1)
+        url = reverse('follow', kwargs={'username': self.user1.username})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_follow_without_authentication(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class PostListCreateAPITestCase(APITestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username='user1', password='password', email='user1@example.com')
+        self.user2 = User.objects.create_user(username='user2', password='password', email='user2@example.com')
+        self.user1.following.add(self.user2)
+        self.post1 = Post.objects.create(user=self.user1, image='image1.jpg', caption='caption1')
+        self.post2 = Post.objects.create(user=self.user2, image='image2.jpg', caption='caption2')
+        self.url = reverse('posts')
+
+    def test_get_posts(self):
+        self.client.force_authenticate(user=self.user1)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['results']), 1)  
+
+    def test_get_posts_without_authentication(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_post_without_authentication(self):
+        data = {'image': 'new_image.jpg', 'caption': 'new caption'}
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_post_with_invalid_data(self):
+        self.client.force_authenticate(user=self.user1)
+        data = {'image': 'new_image.jpg'}  # missing caption
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class PostDetailAPITestCase(APITestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username='user1', password='password', email='user1@example.com')
+        self.user2 = User.objects.create_user(username='user2', password='password', email='user2@example.com')
+        self.post1 = Post.objects.create(user=self.user1, image='image1.jpg', caption='caption1')
+        self.post2 = Post.objects.create(user=self.user2, image='image2.jpg', caption='caption2')
+
+    def test_get_post(self):
+        self.client.force_authenticate(user=self.user1)
+        url = reverse('post-detail', kwargs={'post_id': self.post1.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.post1.id)
+
+    def test_get_post_without_authentication(self):
+        url = reverse('post-detail', kwargs={'post_id': self.post1.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_post_with_invalid_id(self):
+        self.client.force_authenticate(user=self.user1)
+        url = reverse('post-detail', kwargs={'post_id': 9999})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_delete_post(self):
+        self.client.force_authenticate(user=self.user1)
+        url = reverse('post-detail', kwargs={'post_id': self.post1.id})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Post.objects.count(), 1)
+
+    def test_delete_post_without_authentication(self):
+        url = reverse('post-detail', kwargs={'post_id': self.post1.id})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_delete_post_with_invalid_id(self):
+        self.client.force_authenticate(user=self.user1)
+        url = reverse('post-detail', kwargs={'post_id': 9999})
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class LikeToggleAPITestCase(APITestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username='user1', password='password', email='user1@example.com')
+        self.user2 = User.objects.create_user(username='user2', password='password', email='user2@example.com')
+        self.post1 = Post.objects.create(user=self.user1, image='image1.jpg', caption='caption1')
+
+    def test_like_post(self):
+        self.client.force_authenticate(user=self.user2)
+        url = reverse('like', kwargs={'post_id': self.post1.id})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(self.post1.likes.count(), 1)
+
+    def test_unlike_post(self):
+        Like.objects.create(user=self.user2, post=self.post1)
+        self.client.force_authenticate(user=self.user2)
+        url = reverse('like', kwargs={'post_id': self.post1.id})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.post1.likes.count(), 0)
+
+    def test_like_post_without_authentication(self):
+        url = reverse('like', kwargs={'post_id': self.post1.id})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_like_post_with_invalid_id(self):
+        self.client.force_authenticate(user=self.user2)
+        url = reverse('like', kwargs={'post_id': 9999})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class CommentListCreateAPITestCase(APITestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username='user1', password='password', email='user1@example.com')
+        self.user2 = User.objects.create_user(username='user2', password='password', email='user2@example.com')
+        self.post1 = Post.objects.create(user=self.user1, image='image1.jpg', caption='caption1')
+
+    def test_create_comment_without_authentication(self):
+        url = reverse('comments', kwargs={'post_id': self.post1.id})
+        data = {'content': 'This is a comment'}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_comment_with_invalid_id(self):
+        self.client.force_authenticate(user=self.user2)
+        url = reverse('comments', kwargs={'post_id': 9999})
+        data = {'content': 'This is a comment'}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_comments(self):
+        self.client.force_authenticate(user=self.user2)
+        url = reverse('comments', kwargs={'post_id': self.post1.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreater(len(response.data), 0)
+
+    def test_get_comments_without_authentication(self):
+        url = reverse('comments', kwargs={'post_id': self.post1.id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
