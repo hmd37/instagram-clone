@@ -1,5 +1,7 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 
 from drf_spectacular.utils import extend_schema
 
@@ -48,6 +50,15 @@ class UserListAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['username',]
+
+    @method_decorator(cache_page(20, key_prefix='user_list'))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    def get_queryset(self):
+        import time
+        time.sleep(5)
+        return super().get_queryset()
 
     queryset = User.objects.annotate(
         followers_count=Count('followers', distinct=True),
