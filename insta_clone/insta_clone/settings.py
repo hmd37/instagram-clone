@@ -195,6 +195,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:9000",
 ]
 
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/1"
+
+CELERY_RESULTS_BACKEND = "redis://127.0.0.1:6379/1"
+
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 

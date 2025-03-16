@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 
 from apis.permissions import IsProfileOwnerOrAdmin, IsPostOwnerOrAdmin
 from apis.schemas import user_register_schema, post_list_create_schema
+from apis.tasks import send_profile_creation_email
 
 from users.models import User
 from users.serializers import (
@@ -39,7 +40,9 @@ class UserRegisterView(APIView):
         serializer = UserRegisterSerializer(data=request.data, context={'request': request})
 
         if serializer.is_valid():
-            serializer.save()
+            user = serializer.save()
+            send_profile_creation_email.delay(user.id, user.email)
+
             return Response({"message": "User registered successfully"}, 
                             status=status.HTTP_201_CREATED)
         
