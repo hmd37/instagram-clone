@@ -14,6 +14,7 @@ from apis.views import UserRegisterView
 
 
 urlpatterns = [
+    path('chat/', include('chat.urls')),
     path('admin/', admin.site.urls),
     path('api/v1/', include('apis.urls')),
     path('api/auth/login/', TokenObtainPairView.as_view(), name='login'),

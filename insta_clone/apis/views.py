@@ -57,11 +57,6 @@ class UserListAPIView(generics.ListAPIView):
     @method_decorator(cache_page(20, key_prefix='user_list'))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
-    
-    def get_queryset(self):
-        import time
-        time.sleep(5)
-        return super().get_queryset()
 
     queryset = User.objects.annotate(
         followers_count=Count('followers', distinct=True),
